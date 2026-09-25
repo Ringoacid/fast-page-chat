@@ -2,7 +2,9 @@ export const TITLE_INSTRUCTIONS = `Generate a short, useful Japanese title for a
 
 export function validateTitleRequest(body) {
   if (!body || !['codex', 'api'].includes(body.provider)) throw new Error('接続先が不正です。');
-  if (typeof body.model !== 'string' || !/^[\w.:-]{1,150}$/.test(body.model)) throw new Error('モデルIDが不正です。');
+  // An empty Codex model selects its default, just as it does for chat requests.
+  const codexDefault = body.provider === 'codex' && body.model === '';
+  if (!codexDefault && (typeof body.model !== 'string' || !/^[\w.:-]{1,150}$/.test(body.model))) throw new Error('モデルIDが不正です。');
   if (typeof body.pageTitle !== 'string' || body.pageTitle.length > 2000) throw new Error('ページタイトルが不正です。');
   if (typeof body.currentTitle !== 'string' || body.currentTitle.length > 100) throw new Error('チャット名が不正です。');
   if (!Array.isArray(body.messages) || body.messages.length < 2 || body.messages.length > 24 ||

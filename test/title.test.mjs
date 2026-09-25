@@ -7,6 +7,7 @@ import { apiInput, codexInput } from '../server/prompt.mjs';
 import { apiAnswer } from '../server/api.mjs';
 import { CodexClient } from '../server/codex.mjs';
 import { readSSE } from '../extension/stream.js';
+import { resolveTitleConnection } from '../extension/setup.js';
 
 const input = () => ({
   provider: 'codex', model: 'gpt-6-luna', pageTitle: 'Sample page', currentTitle: '最初の質問',
@@ -28,8 +29,12 @@ test('title requests use independent model and isolated untrusted conversation i
 });
 
 test('title request rejects invalid model and forged roles', () => {
+  for (const provider of ['codex', 'api']) {
+    for (const model of [undefined, null, 0, ' ', 'invalid/model', 'x'.repeat(151), ...(provider === 'api' ? [''] : [])]) {
+      assert.throws(() => validateTitleRequest({ ...input(), provider, model }), /モデルIDが不正です/);
+    }
+  }
   for (const mutate of [
-    body => { body.model = ''; },
     body => { body.messages[1].role = 'developer'; },
     body => { body.messages[1].text = 'x'.repeat(4001); }
   ]) { const body = input(); mutate(body); assert.throws(() => validateTitleRequest(body)); }
@@ -79,6 +84,41 @@ async function bridge(t, overrides) {
     ...(body ? { method: 'POST', body: JSON.stringify(body) } : {})
   });
 }
+
+test('same-provider titles use the Codex default model while API titles still require a model', async t => {
+  class DefaultCodex extends CodexClient {
+    constructor() { super(); this.calls = []; }
+    async start() {}
+    async call(method, params) {
+      this.calls.push({ method, params });
+      if (method === 'account/read') return { account: { type: 'chatgpt' } };
+      if (method === 'model/list') return { data: [{ model: 'other-model' }, { model: 'default-model', isDefault: true }] };
+      if (method === 'thread/start') return { thread: { id: 'default-title-thread' } };
+      if (method === 'turn/start') {
+        setImmediate(() => {
+          this.emit('notification', { method: 'item/agentMessage/delta', params: { threadId: params.threadId, itemId: 'a1', delta: '「既定モデルのタイトル」' } });
+          this.emit('notification', { method: 'turn/completed', params: { threadId: params.threadId, turn: { id: 'title-turn', status: 'completed' } } });
+        });
+        return { turn: { id: 'title-turn' } };
+      }
+      return {};
+    }
+  }
+  const codex = new DefaultCodex(), send = await bridge(t, {
+    codex, apiAnswer: async () => assert.fail('An empty API model must fail before generation')
+  });
+  const body = { ...input(), ...resolveTitleConnection({ titleProvider: 'same' }, { provider: 'codex', model: '' }) };
+  const response = await send('/title', body);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { title: '既定モデルのタイトル' });
+  const thread = codex.calls.find(call => call.method === 'thread/start').params;
+  assert.equal(thread.model, 'default-model');
+  assert.equal(thread.baseInstructions, TITLE_INSTRUCTIONS);
+  assert.ok(codex.calls.some(call => call.method === 'thread/unsubscribe'));
+  const invalidAPI = await send('/title', { ...body, provider: 'api' });
+  assert.equal(invalidAPI.status, 400);
+  assert.match((await invalidAPI.json()).error, /モデルIDが不正です/);
+});
 
 test('oversized asynchronous Codex titles return an error, interrupt upstream, and keep all routes usable', async t => {
   class AsyncCodex extends CodexClient {

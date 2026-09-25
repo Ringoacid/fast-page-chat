@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export const VERSION = '0.10.1';
+export const VERSION = '0.10.2';
 export const PROTOCOL_VERSION = 1;
 const port = process.env.FPC_PORT;
 if (port !== undefined && (!/^\d+$/.test(port) || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535)) throw new Error('FPC_PORTは1〜65535の整数で指定してください。');

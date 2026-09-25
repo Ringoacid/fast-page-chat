@@ -56,7 +56,14 @@ try {
   await panel.addInitScript(({ tabId, token, endpoint }) => {
     window.captureCount = 0; window.nativeCalls = 0; window.nativeMissing = true;
     const execute = chrome.scripting.executeScript.bind(chrome.scripting);
-    chrome.scripting.executeScript = (...args) => { window.captureCount++; return execute(...args); };
+    chrome.scripting.executeScript = async (...args) => {
+      window.captureCount++;
+      if (window.holdNextCapture) {
+        window.holdNextCapture = false; window.capturePaused = true;
+        await new Promise(resolve => { window.releaseCapture = resolve; });
+      }
+      return execute(...args);
+    };
     const query = chrome.tabs.query.bind(chrome.tabs);
     chrome.tabs.query = async info => info.active ? [await chrome.tabs.get(tabId)] : query(info);
     chrome.tabs.create = async info => { window.openedLoginUrl = info.url; return { id: 999999, url: info.url }; };
@@ -68,6 +75,10 @@ try {
   }, { tabId: sourceTab.id, token, endpoint });
   await panel.goto('chrome-extension://' + extensionId + '/panel.html');
   await panel.locator('#setup-consent').waitFor({ state: 'visible' });
+  // Real extension messages/extraction below verify panel routing and consent.
+  // This headless fixture cannot prove Chrome grants activeTab on toolbar clicks.
+  const toolbarCapture = (tabId = sourceTab.id, windowId = sourceTab.windowId) => worker.evaluate(message => chrome.runtime.sendMessage(message).catch(() => null), { type: 'toolbar-capture', tabId, windowId });
+  assert.deepEqual(await toolbarCapture(), { captured: false });
   assert.equal(await panel.evaluate(() => window.captureCount), 0);
   assert.equal(await panel.locator('#source-text').textContent(), '');
   assert.equal(requests.length, 0);
@@ -79,6 +90,8 @@ try {
   await panel.locator('#setup-consent').waitFor({ state: 'visible' });
   assert.equal(requests.length, 0); assert.equal(await panel.evaluate(() => window.captureCount), 0);
   await panel.locator('#consent-check').check(); await panel.locator('#consent-continue').click();
+  assert.deepEqual(await toolbarCapture(), { captured: false });
+  assert.equal(await panel.evaluate(() => window.captureCount), 0, 'The setup dialog must still prevent reading after consent.');
   await panel.locator('#setup-connect').click();
   await panel.locator('#setup-status').filter({ hasText: '補助アプリが見つかりません' }).waitFor();
   assert.equal((await worker.evaluate(() => chrome.storage.local.get('settings'))).settings.token, '');
@@ -103,11 +116,41 @@ try {
   await panel.screenshot({ path: 'test-results/setup-api-320.png', animations: 'disabled' });
   await panel.locator('#setup-finish').click();
   await panel.waitForFunction(() => document.querySelector('#source-text').textContent.includes('同意した後にだけ'));
+  const beforeToolbar = await panel.evaluate(() => window.captureCount);
+  assert.deepEqual(await toolbarCapture(sourceTab.id + 10000), { captured: false });
+  await toolbarCapture(sourceTab.id, sourceTab.windowId + 10000);
+  assert.equal(await panel.evaluate(() => window.captureCount), beforeToolbar, 'A stale tab or another window must not capture the current page.');
+  await source.evaluate(() => { document.querySelector('main p').textContent = 'ツールバーを再クリックして取得した本文です。'; });
+  await panel.evaluate(() => { window.holdNextCapture = true; });
+  const currentCapture = toolbarCapture();
+  await panel.waitForFunction(() => window.capturePaused);
+  assert.deepEqual(await toolbarCapture(sourceTab.id + 10000), { captured: false });
+  await panel.evaluate(() => window.releaseCapture());
+  assert.deepEqual(await currentCapture, { captured: true }, 'A stale toolbar message must not cancel an in-flight capture of the current tab.');
+  await panel.waitForFunction(() => document.querySelector('#source-text').textContent.includes('再クリックして取得'));
+  await source.evaluate(() => {
+    const paragraph = document.querySelector('main p'); paragraph.textContent = 'パネルの再取得ボタンで取得した本文です。';
+    const range = document.createRange(); range.selectNodeContents(paragraph);
+    getSelection().removeAllRanges(); getSelection().addRange(range);
+  });
+  await panel.locator('#source-open').click();
+  await panel.locator('#refresh').click();
+  await panel.waitForFunction(() => document.querySelector('#source-text').textContent.includes('再取得ボタン'));
+  await panel.locator('#scope').selectOption('selection');
+  await panel.waitForFunction(() => document.querySelector('#source-text').textContent === 'パネルの再取得ボタンで取得した本文です。');
+  await panel.locator('#scope').selectOption('page');
+  await panel.waitForFunction(() => document.querySelector('#source-text').textContent.includes('セットアップの検証記事'));
+  await panel.locator('dialog[open] [data-close]').click();
   await panel.locator('#question').fill('本文を要約'); await panel.locator('#send').click();
   await panel.waitForFunction(() => document.querySelector('#chat-title').textContent === '初回設定を確認する');
   assert.equal(requests.find(request => request.path === '/chat').body.provider, 'api');
   assert.equal(requests.find(request => request.path === '/title').body.provider, 'api');
   assert.equal(requests.find(request => request.path === '/title').body.model, 'test-model');
+  const savedSource = await panel.locator('#source-text').textContent(), savedCaptures = await panel.evaluate(() => window.captureCount);
+  await source.evaluate(() => { document.querySelector('main p').textContent = '保存済みチャットに混ぜてはいけない新しい本文です。'; });
+  assert.deepEqual(await toolbarCapture(), { captured: false });
+  assert.equal(await panel.locator('#source-text').textContent(), savedSource, 'Toolbar actions must not replace an existing chat source.');
+  assert.equal(await panel.evaluate(() => window.captureCount), savedCaptures);
   await panel.locator('#settings-open').click(); await panel.locator('#clear-chats').click();
   await worker.evaluate(() => new Promise(resolve => {
     navigator.locks.request('fast-page-chat-data', { mode: 'shared' }, () => {
@@ -129,5 +172,5 @@ try {
   await panel.locator('#setup-status').filter({ hasText: '更新が必要' }).waitFor();
   assert.equal(await panel.locator('#setup-account').isVisible(), false);
   assert.deepEqual(errors, []);
-  console.log('Onboarding integration passed: consent, recovery, native pairing, API key non-persistence, same-provider title, deletion, protocol mismatch.');
+  console.log('Onboarding integration passed: consent, toolbar recapture and tab/window isolation (not the native activeTab grant), recovery, native pairing, API key non-persistence, same-provider title, deletion, protocol mismatch.');
 } finally { await context?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

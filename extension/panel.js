@@ -100,11 +100,18 @@ function updateHeader() {
   $('source-controls').hidden = Boolean(chat);
   $('context-meta').textContent = page ? (page.truncated ? page.originalLength.toLocaleString() + '文字のうち先頭' : '') + page.text.length.toLocaleString() + '文字' + (chat ? ' · チャット開始時の本文' : '') : '';
 }
-async function capture() {
+async function capture(expectedTabId = null) {
   if (!hasDataConsent(settings) || $('setup-dialog').open) return false;
+  if (expectedTabId !== null) {
+    // A delayed toolbar message must not cancel a newer page's capture.
+    const previous = generation;
+    try { if ((await activeTab())?.id !== expectedTabId || generation !== previous || chat || busy || imageLoading) return false; }
+    catch { return false; }
+  }
   const ticket = ++generation;
   try {
     const tab = await activeTab(); if (ticket !== generation) return false;
+    if (expectedTabId !== null && (tab?.id !== expectedTabId || chat || busy || imageLoading)) return false;
     tabId = tab?.id ?? null;
     const result = await captureTab(chrome, tab, $('scope').value);
     const current = await activeTab();
@@ -810,9 +817,9 @@ $('page-access-toggle').addEventListener('click', () => {
     .finally(() => { button.disabled = false; });
 });
 on('source-open', 'click', () => { updateHeader(); openDialog('source-dialog'); });
-on('refresh', 'click', capture);
+on('refresh', 'click', () => capture());
 on('title-retry', 'click', () => { if (chat && !busy) return updateTitle(chat, { retry: true }); });
-on('scope', 'change', capture);
+on('scope', 'change', () => capture());
 on('model-open', 'click', () => { $('provider').value = selectedProvider(); renderModels(); openDialog('model-dialog'); if ($('provider').value === 'codex' && !modelCatalog.length) loadModels(); });
 on('provider', 'change', () => { renderModels(); if ($('provider').value === 'codex' && !modelCatalog.length) loadModels(); });
 on('load-models', 'click', loadModels);
@@ -897,6 +904,12 @@ $('question').addEventListener('keydown', e => {
 });
 on('question', 'input', () => { updateSend(); clearTimeout(sessionTimer); sessionTimer = setTimeout(() => saveSession().catch(e => status(e.message, true)), 250); });
 on('stop', 'click', () => controller?.abort());
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || message?.type !== 'toolbar-capture' || message.windowId !== windowId || !Number.isInteger(message.tabId) || message.tabId < 0) return;
+  if (chat || busy || imageLoading) { sendResponse({ captured: false }); return; }
+  capture(message.tabId).then(captured => sendResponse({ captured }), () => sendResponse({ captured: false }));
+  return true;
+});
 chrome.tabs.onActivated.addListener(info => {
   if (info.windowId !== windowId) return;
   tabId = info.tabId; invalidateDraft(); if (!chat && !busy) capture();

@@ -37,16 +37,29 @@ test('identity detects reloads and same-tab navigation with URL metadata withhel
   assert.equal(sameDocument(old, null), false);
 });
 
-test('toolbar icon uses the browser side panel toggle', async () => {
+test('toolbar uses the normal action path and refreshes only its clicked window and tab', async () => {
   const { readFile } = await import('node:fs/promises');
   const { runInNewContext } = await import('node:vm');
   const events = [];
+  let action;
   const chrome = {
     sidePanel: {
-      setPanelBehavior: async value => { events.push(['behavior', value.openPanelOnActionClick]); }
+      setPanelBehavior: async value => { events.push(['behavior', value.openPanelOnActionClick]); },
+      open: async value => { events.push(['open', value.windowId]); }
     },
-    runtime: { onInstalled: { addListener() {} } }
+    action: { onClicked: { addListener(listener) { action = listener; } } },
+    runtime: {
+      onInstalled: { addListener() {} },
+      sendMessage: async value => { events.push(['capture', value.type, value.tabId, value.windowId]); }
+    }
   };
   runInNewContext(await readFile(new URL('../extension/background.js', import.meta.url), 'utf8'), { chrome, console });
-  assert.deepEqual(events, [['behavior', true]]);
+  assert.deepEqual(events, [['behavior', false]]);
+  assert.equal(typeof action, 'function');
+  action({ id: 42, windowId: 7 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events, [['behavior', false], ['open', 7], ['capture', 'toolbar-capture', 42, 7]]);
+  action({ id: -1, windowId: 7 }); action({ id: 42 }); action();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(events.length, 3, 'Missing or invalid clicked tabs must not open or capture another tab.');
 });
