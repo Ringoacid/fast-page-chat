@@ -1,5 +1,5 @@
 import { lstat, realpath, unlink } from 'node:fs/promises';
-import { relative, resolve, isAbsolute } from 'node:path';
+import { relative, resolve, isAbsolute, dirname } from 'node:path';
 import { runtimePaths } from './config.mjs';
 
 // Deliberately no wildcards or recursive deletion. Auth, state, settings, cache,
@@ -17,16 +17,21 @@ export async function clearCodexDiagnostics(paths = runtimePaths()) {
   if (!samePath(home, expectedHome)) throw new Error('診断ログの保存先が不正です。');
   let actualHome;
   try {
-    const info = await lstat(home);
-    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('診断ログの保存先がリンクになっています。');
+    // A Windows 8.3 path (for example RUNNER~1) legitimately resolves to a
+    // different spelling. Detect links explicitly in every ancestor instead of
+    // treating any realpath spelling change as a redirect.
+    for (let directory = home; ; directory = dirname(directory)) {
+      const info = await lstat(directory);
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('診断ログの保存先がリンクになっています。');
+      if (dirname(directory) === directory) break;
+    }
     actualHome = await realpath(home);
-    if (!samePath(actualHome, home)) throw new Error('診断ログの保存先がリンクになっています。');
   } catch (error) { if (error.code === 'ENOENT') return 0; throw error; }
   const targets = [];
   // Validate all candidates before deleting the first file.
   for (const name of DIAGNOSTIC_FILES) {
-    const target = resolve(home, name);
-    if (!within(home, target)) throw new Error('診断ログの保存先が不正です。');
+    const target = resolve(actualHome, name);
+    if (!within(actualHome, target)) throw new Error('診断ログの保存先が不正です。');
     try {
       const info = await lstat(target);
       if (!info.isFile() || info.isSymbolicLink() || !samePath(await realpath(target), target)) throw new Error('診断ログに通常のファイル以外が含まれています。');

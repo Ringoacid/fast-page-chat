@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { mkdtemp, writeFile, readFile, readdir, rm, mkdir, symlink } from 'node:fs/promises';
 import { resolve, dirname, basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { runtimePaths, prepareRuntime, loadConnectionToken, loadApiSettings, platformSecretStore, VERSION, PROTOCOL_VERSION } from '../server/config.mjs';
 import { clearCodexDiagnostics } from '../server/diagnostics.mjs';
 import { CodexClient } from '../server/codex.mjs';
@@ -71,6 +71,21 @@ test('diagnostic cleanup removes only known files and preserves credentials and 
   assert.equal(await clearCodexDiagnostics(paths), 0);
   await assert.rejects(clearCodexDiagnostics({ ...paths, codexHome: paths.dataDir }), /不正/);
 });
+
+test('diagnostic cleanup accepts an ordinary Windows 8.3 data path', { skip: process.platform !== 'win32' }, async t => {
+  const paths = await isolatedPaths(t);
+  const env = { ...process.env }; delete env.PSModulePath;
+  // Ask Windows for the real short-name alias; never manufacture an alias or
+  // canonicalize the test input, which would hide the runner TEMP regression.
+  const shortPath = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    '$ErrorActionPreference="Stop"; $filesystem=New-Object -ComObject Scripting.FileSystemObject; [Console]::Out.Write($filesystem.GetFolder([Console]::In.ReadToEnd()).ShortPath)'],
+  { env, input: paths.dataDir, encoding: 'utf8', windowsHide: true, timeout: 10000 }).trim();
+  if (!shortPath.includes('~')) { t.skip('The test volume does not provide 8.3 aliases.'); return; }
+  await writeFile(resolve(paths.codexHome, 'logs_2.sqlite'), 'fixture');
+  await writeFile(resolve(paths.codexHome, 'auth.json'), 'preserve');
+  assert.equal(await clearCodexDiagnostics(runtimePaths(shortPath)), 1);
+  assert.equal(await readFile(resolve(paths.codexHome, 'auth.json'), 'utf8'), 'preserve');
+});
 test('diagnostic cleanup rejects a redirected log directory before deleting any file', async t => {
   const paths = await isolatedPaths(t), outside = resolve(paths.dataDir, 'outside');
   await mkdir(outside);
@@ -80,6 +95,17 @@ test('diagnostic cleanup rejects a redirected log directory before deleting any 
   await assert.rejects(clearCodexDiagnostics(paths), /ファイル以外/);
   assert.equal(await readFile(resolve(outside, 'codex-login.log'), 'utf8'), 'preserve');
   assert.equal(await readFile(resolve(paths.codexHome, 'logs_2.sqlite'), 'utf8'), 'preserve');
+});
+
+test('diagnostic cleanup rejects a junction or symlink in an ancestor of the dedicated home', async t => {
+  const paths = await isolatedPaths(t), linkedData = resolve(paths.dataDir, 'linked-data');
+  const actualData = resolve(paths.dataDir, 'actual-data');
+  const actualHome = resolve(actualData, 'codex-home');
+  await mkdir(actualHome, { recursive: true });
+  await writeFile(resolve(actualHome, 'logs_2.sqlite'), 'preserve');
+  await symlink(actualData, linkedData, process.platform === 'win32' ? 'junction' : 'dir');
+  await assert.rejects(clearCodexDiagnostics(runtimePaths(linkedData)), /保存先がリンク/);
+  assert.equal(await readFile(resolve(actualHome, 'logs_2.sqlite'), 'utf8'), 'preserve');
 });
 test('all setup and cleanup routes authenticate before reading or changing data', async t => {
   let writes = 0;

@@ -16,8 +16,8 @@
 
 ## 公開URL
 
-- [ ] プライバシーポリシーをログイン不要のHTTPS URLで公開し、拡張機能同梱版と同じ内容であることを確認する。
-- [ ] GitHub Pagesを使う場合は、リポジトリのPages設定でGitHub Actionsを選び、ポリシーの確認後に手動のPublish Pagesワークフローを実行する。ソースのpushでは自動公開しない。ワークフローの `--policy` チェックはポリシー公開の準備を確認し、Web Store用の `--public` ゲートとは区別する。
+- [x] プライバシーポリシーをログイン不要のHTTPS URLで公開し、拡張機能同梱版と同じ内容であることを確認する。
+- [x] GitHub Pagesを使う場合は、リポジトリのPages設定でGitHub Actionsを選び、ポリシーの確認後に手動のPublish Pagesワークフローを実行する。ソースのpushでは自動公開しない。ワークフローの `--policy` チェックはポリシー公開の準備を確認し、Web Store用の `--public` ゲートとは区別する。
 - [ ] サポートURL・ポリシーURLをChrome Web Storeの掲載情報にも設定する。
 
 ## 初めて使う環境での確認
@@ -41,11 +41,11 @@
 
 ## 自動チェックと配布物
 
-- [x] `node --test test/*.test.mjs` が成功する（0.10.0確認時83件）。
+- [x] `node --test test/*.test.mjs` が成功する（0.10.0確認時85件）。
 - [x] setup、browser、title-retryのブラウザ回帰スクリプトの成功を確認する。モデル応答はモックであり、実モデル確認と区別する。[検証記録](validation-0.10.0.md)
 - [x] `node scripts/check-release.mjs` が成功する。
 - [x] `node scripts/prepare-source.mjs --dry-run` が成功する。
-- [ ] `node scripts/prepare-source.mjs` が生成したallowlist方式の出力だけを公開する。作業フォルダー全体を公開しない。
+- [x] `node scripts/prepare-source.mjs` が生成したallowlist方式の出力だけを公開する。作業フォルダー全体を公開しない（96ファイルとGit登録内容のSHA-256一致を確認）。
 - [x] `.env`、`.local`、`.research`、`test-results`、ブラウザプロファイル、認証情報が配布物にないことを確認する。
 - [x] 専用アイコン、440×280のプロモーション画像、1280×800の実UIスクリーンショット、説明文、権限説明を確認する。
 - [ ] Chrome Web Storeのデータ申告を実装・画面説明・ポリシーと照合する。「外部送信なし」「完全ローカル」と記載しない。
