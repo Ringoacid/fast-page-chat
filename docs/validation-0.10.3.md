@@ -16,4 +16,8 @@
 
 最終ビルドのSHA-256: Setup.exe `05dac87e74c9732df838306aec24bf214aa10171927ab4d7ab4994987b386e10`、拡張機能ZIP `32806b5d38e276b8ffb992210fb6e72ba1503236014c77d4b7353ef7899b9f8e`、SHA256SUMS `59c4aa9f91d61915c082ab7886f11c3760a6aef78041deb4ebc02da9adff0c66`。最終ビルドのserver/extensionソース31ファイルは作業ツリーとSHA-256一致（配布時に公開用IDを挿入するmanifestを除く）。VMのUI実操作はこの最終ビルドより前の0.10.3候補で行い、最終ビルドではAPIモデル候補から旧モデルを除くフィルターのみ変更した。
 
+[公開した0.10.3ベータ版](https://github.com/Ringoacid/fast-page-chat/releases/tag/v0.10.3)の3アセットはGitHubのSHA-256値と最終ビルドが一致する。公開対象104ファイルはレビュー済みのソース一覧とGitの内容が一致する。[Source checks](https://github.com/Ringoacid/fast-page-chat/actions/runs/36157666853)は公開元コミット `7330c4b048fb3b41197b9316e81c10b9735ffa92` で成功した。
+
+[Pages公開](https://github.com/Ringoacid/fast-page-chat/actions/runs/36158015310)も成功した。公開ポリシーと `docs/privacy.html` のSHA-256はどちらも `883dd484f77dd80b593533dc2e7b9cbe6334ef7f0c9ea0941c68264ac50903a4` で一致する。同梱版 `extension/privacy.html` も同一内容。
+
 画像の実送信、最終版の完全新規導入、途切れないWindows再起動、アンインストール後の削除、Chrome Web Storeの申告と審査は未完了。`docs/publication.json` の `cleanInstallVerified` はfalseのまま。0.10.2以前の証拠は[0.10.2の記録](validation-0.10.2.md)に残す。

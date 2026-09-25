@@ -19,7 +19,7 @@
 - [x] 0.10.1までのプライバシーポリシーをHTTPS URLで公開し、同梱版との内容一致を確認する。
 - [x] 0.10.2も対象に含めたプライバシーポリシーをログイン不要のHTTPS URLへ反映し、拡張機能同梱版と同じ内容であることを確認する。
 - [x] GitHub Pagesを使う場合は、リポジトリのPages設定でGitHub Actionsを選び、ポリシーの確認後に手動のPublish Pagesワークフローを実行する。ソースのpushでは自動公開しない。ワークフローの `--policy` チェックはポリシー公開の準備を確認し、Web Store用の `--public` ゲートとは区別する。
-- [ ] 0.10.3のプライバシーポリシーをGitHub Pagesへ反映し、同梱版と内容一致を確認する。
+- [x] 0.10.3のプライバシーポリシーをGitHub Pagesへ反映し、同梱版とSHA-256一致を確認する。[公開ページ](https://ringoacid.github.io/fast-page-chat/privacy.html)と[Pages実行](https://github.com/Ringoacid/fast-page-chat/actions/runs/36158015310)を参照する。
 - [ ] サポートURL・ポリシーURLをChrome Web Storeの掲載情報にも設定する。
 
 ## 初めて使う環境での確認
@@ -39,7 +39,7 @@
 
 - [x] 0.10.2の配布予定の拡張機能IDでNative Messagingの接続を確認する。隔離ChromiumとVMで確認済み。
 - [x] 0.10.3のVMでChrome標準の見出し・閉じるボタンのみを表示し、ツールバーの開閉とAPIモデル候補取得を確認する。
-- [x] ツールバーボタンでパネルを開き、activeTabによる本文取得・会話中の再クリックを実際のChromeで確認する。閉じる操作はパネル右上の×。
+- [x] 0.10.3のツールバーボタンでパネルを開閉し、activeTabによる本文取得を実際のChromeで確認する。Chrome標準の×からも閉じられる。
 - [ ] 全サイト・外部画像の権限を承認／拒否／撤回して確認する。
 - [ ] 実際の画面撮影から切り出す画像、画面外画像、ページ移動中の中止を確認する。
 - [ ] 複数ウィンドウ、キーボード操作、320px幅、ライト／ダークを確認する。
@@ -55,7 +55,7 @@
 - [x] 0.10.2の最終ソースで `node scripts/prepare-source.mjs --dry-run` が成功する。
 - [x] 0.10.2の最終ソースについて、`node scripts/prepare-source.mjs` が生成したallowlist方式の出力とGit登録内容のSHA-256一致を確認して公開する。102ファイルを照合し、作業フォルダー全体を公開しない。
 - [x] 0.10.2の公開アセットとビルドのSHA-256一致、GitHub Actionsの成功を確認する。[公開後の確認](validation-0.10.2.md)を参照する。
-- [ ] 0.10.3の最終ビルド、Native Messaging回帰、Git登録内容とのソース一致、公開アセットのSHA-256、GitHub Actionsを確認する。
+- [x] 0.10.3の最終ビルド、Native Messaging回帰、Git登録内容とのソース一致、公開アセットのSHA-256、GitHub Actionsを確認する。[検証記録](validation-0.10.3.md)と[公開版](https://github.com/Ringoacid/fast-page-chat/releases/tag/v0.10.3)を参照する。
 - [x] `.env`、`.local`、`.research`、`test-results`、ブラウザプロファイル、認証情報が0.10.2の配布物にないことを確認する。
 - [x] 専用アイコン、440×280のプロモーション画像、1280×800の実UIスクリーンショット、説明文、権限説明を確認する。
 - [ ] Chrome Web Storeのデータ申告を実装・画面説明・ポリシーと照合する。「外部送信なし」「完全ローカル」と記載しない。
