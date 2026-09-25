@@ -101,6 +101,14 @@ try {
   await writeFile(resolve(work, 'result.json'), JSON.stringify(report, null, 2));
   const env = { ...process.env, FPC_PORT: String(port), FPC_DATA_DIR: data, OPENAI_API_KEY: '', OPENAI_MODEL: '' };
   for (const key of ['CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'CODEX_AUTH_TOKEN', 'CHATGPT_ACCESS_TOKEN']) delete env[key];
+  phase = 'duplicate Windows environment fixture';
+  const environmentFixture = resolve(work, 'DuplicateEnvironment.exe');
+  const compiler = resolve(process.env.SystemRoot, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
+  const compiled = await childRun(compiler, ['/nologo', '/target:exe', '/optimize+', '/out:' + environmentFixture, resolve(repository, 'test/fixtures/DuplicateEnvironment.cs')], { env });
+  check(compiled.code === 0, 'Could not compile the Windows environment regression fixture.');
+  const environmentProbe = await childRun(environmentFixture, ['--probe'], { env, timeout: 20000 });
+  check(environmentProbe.code === 0, 'The Win32 fixture did not reproduce the .NET Framework PATH/Path dictionary collision.');
+  passed('A real inherited Unicode environment block reproduces the Framework PATH/Path collision');
   phase = 'port validation';
   for (const invalidPort of ['0', '65536', '4318oops', '']) {
     const result = await childRun(process.execPath, ['--input-type=module', '-e', 'await import(process.argv[1]);', pathToFileURL(resolve(repository, 'server/config.mjs')).href], { env: { ...env, FPC_PORT: invalidPort }, timeout: 5000 });
@@ -117,8 +125,13 @@ try {
   // A parent PowerShell 7 session can export module paths that Windows
   // PowerShell 5 cannot load; use its normal built-in module discovery.
   const installerEnv = { ...env }; delete installerEnv.PSModulePath;
-  const installed = await childRun('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', resolve(stage, 'install.ps1'), '-InstallRoot', app, '-DataRoot', data, '-NoRegister'], { env: installerEnv, timeout: 60000 });
+  const installArgs = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', resolve(repository, 'test/fixtures/InstallWithoutAuditPrivilege.ps1'), '-Installer', resolve(stage, 'install.ps1'), '-InstallRoot', app, '-DataRoot', data];
+  const installed = await childRun('powershell.exe', installArgs, { env: installerEnv, timeout: 60000 });
   check(installed.code === 0, 'The isolated NoRegister installation failed: ' + installed.stderrText);
+  phase = 'isolated reinstall without audit privilege';
+  const reinstalled = await childRun('powershell.exe', installArgs, { env: installerEnv, timeout: 60000 });
+  check(reinstalled.code === 0, 'Reinstall into an already protected data directory failed: ' + reinstalled.stderrText);
+  passed('Install and reinstall require no audit privilege and preserve private data permissions and ownership');
   check(resolve((await readFile(resolve(app, 'runtime-data-path.txt'), 'utf8')).trim()) === data, 'The installed launcher would use a different data directory.');
   const manifest = JSON.parse(await readFile(resolve(app, 'native-host.json'), 'utf8'));
   const origin = manifest.allowed_origins?.[0];
@@ -126,8 +139,8 @@ try {
   check(resolve(manifest.path) === resolve(app, 'FastPageChatHost.exe'), 'Installed native manifest points outside the test installation.');
   passed('NoRegister installation uses isolated application and data directories');
   const launcher = resolve(app, 'FastPageChatHost.exe');
-  const bootstrap = async targetOrigin => {
-    const result = await childRun(launcher, [targetOrigin], { env, input: frame({ type: 'connect' }), timeout: 20000, keepInputOpen: true });
+  const bootstrap = async (targetOrigin, duplicateEnvironment = false) => {
+    const result = await childRun(duplicateEnvironment ? environmentFixture : launcher, duplicateEnvironment ? [launcher, targetOrigin] : [targetOrigin], { env, input: frame({ type: 'connect' }), timeout: 20000, keepInputOpen: true });
     return { ...result, response: result.stdout.length ? readFrame(result.stdout) : null };
   };
   phase = 'origin validation';
@@ -142,7 +155,7 @@ try {
   check((incomplete.code !== 0 || incompleteResponse?.ok === false) && !incompleteResponse?.token, 'Incomplete native input was not rejected on EOF.');
   passed('Incomplete native input reaches EOF and terminates without starting a bridge');
   phase = 'first native bootstrap';
-  const first = await bootstrap(origin);
+  const first = await bootstrap(origin, true);
   check(first.code === 0 && first.response?.ok === true, 'Native bootstrap failed.');
   check(first.response.endpoint === base && first.response.protocolVersion === PROTOCOL_VERSION, 'Native bootstrap used the wrong endpoint or protocol.');
   check(/^[a-f0-9]{64}$/.test(first.response.token || ''), 'Native bootstrap did not return a valid connection token.');
@@ -151,6 +164,7 @@ try {
   const health = await (await request('/health')).json();
   check(health.app === 'fast-page-chat' && health.version === VERSION && health.protocolVersion === PROTOCOL_VERSION, 'Started bridge metadata does not match this release.');
   check((await request('/health', { authenticated: false })).status === 401, 'Started bridge accepts requests without authentication.');
+  passed('Compiled launcher starts the isolated bridge with inherited PATH/Path duplicates');
   passed('Native input left open like Chrome still returns a framed token and reaches launcher stdio EOF while the bridge stays alive');
   phase = 'native reuse';
   const second = await bootstrap(origin);

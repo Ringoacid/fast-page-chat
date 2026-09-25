@@ -1,6 +1,6 @@
 # 公開前チェックリスト
 
-対象: 0.10.0。未完了の項目を成功したものとして扱わない。
+対象: 0.10.1（GitHubベータ版）。未完了の項目を成功したものとして扱わない。現在の結果は[0.10.1の検証記録](validation-0.10.1.md)、以前の結果は[0.10.0の検証記録](validation-0.10.0.md)を参照する。
 
 ## 公開者が確定する項目
 
@@ -11,12 +11,12 @@
 - [x] `docs/publication.json` を実際の公開情報に更新する。
 - [x] 同梱・公開ポリシーと公開サイトに確定した公開者・リンクを反映する。
 - [x] ヘルパーの保存先・APIキーのDPAPI保護・Codex認証情報と診断記録・削除の実装をプライバシーポリシーと照合する。
-- [ ] 実際の未設定PCでのインストール動作を確認する。
+- [x] 開発環境のないWindows 11 Home VMで、0.10.0の初回インストールと0.10.1への更新を確認する。実回答までの導入完了は別項目で確認する。
 - [x] 第三者のNode.js・Codexバイナリを同梱する場合、配布する正確なバージョン、ライセンス、必要なNOTICEを含める。
 
 ## 公開URL
 
-- [x] プライバシーポリシーをログイン不要のHTTPS URLで公開し、拡張機能同梱版と同じ内容であることを確認する。
+- [ ] 0.10.1も対象に含めたプライバシーポリシーをログイン不要のHTTPS URLへ反映し、拡張機能同梱版と同じ内容であることを確認する。0.10.0のポリシーは公開済み。
 - [x] GitHub Pagesを使う場合は、リポジトリのPages設定でGitHub Actionsを選び、ポリシーの確認後に手動のPublish Pagesワークフローを実行する。ソースのpushでは自動公開しない。ワークフローの `--policy` チェックはポリシー公開の準備を確認し、Web Store用の `--public` ゲートとは区別する。
 - [ ] サポートURL・ポリシーURLをChrome Web Storeの掲載情報にも設定する。
 
@@ -41,14 +41,15 @@
 
 ## 自動チェックと配布物
 
-- [x] `node --test test/*.test.mjs` が成功する（0.10.0確認時85件）。
-- [x] setup、browser、title-retryのブラウザ回帰スクリプトの成功を確認する。モデル応答はモックであり、実モデル確認と区別する。[検証記録](validation-0.10.0.md)
+- [x] `node --test test/*.test.mjs` が成功する（0.10.1確認時85件）。
+- [x] setup、browser、title-retryのブラウザ回帰スクリプトの成功を確認する。モデル応答はモックであり、実モデル確認と区別する。[0.10.0時点の検証記録](validation-0.10.0.md)
+- [x] 重複する環境変数を実際のWin32環境ブロックで再現し、0.10.1のコンパイル済みランチャーと隔離ChromiumによるNative Messagingを確認する（14項目）。[検証記録](validation-0.10.1.md)
 - [x] `node scripts/check-release.mjs` が成功する。
 - [x] `node scripts/prepare-source.mjs --dry-run` が成功する。
-- [x] `node scripts/prepare-source.mjs` が生成したallowlist方式の出力だけを公開する。作業フォルダー全体を公開しない（96ファイルとGit登録内容のSHA-256一致を確認）。
+- [ ] 0.10.1の最終ソースについて、`node scripts/prepare-source.mjs` が生成したallowlist方式の出力とGit登録内容のSHA-256一致を確認して公開する。作業フォルダー全体を公開しない（0.10.0では96ファイルの一致を確認済み）。
 - [x] `.env`、`.local`、`.research`、`test-results`、ブラウザプロファイル、認証情報が配布物にないことを確認する。
 - [x] 専用アイコン、440×280のプロモーション画像、1280×800の実UIスクリーンショット、説明文、権限説明を確認する。
 - [ ] Chrome Web Storeのデータ申告を実装・画面説明・ポリシーと照合する。「外部送信なし」「完全ローカル」と記載しない。
 - [ ] すべての公開ゲートを満たしてから `node scripts/check-release.mjs --public` を実行する。
 
-`policyFinalized`、`cleanInstallVerified`、`storeAssetsVerified` は証拠を確認してからtrueにする。自動チェックはストア審査合格、法令適合、秘密情報の完全な検出を保証するものではない。
+`policyFinalized`、`cleanInstallVerified`、`storeAssetsVerified` は証拠を確認してからtrueにする。初回ログイン・実モデル回答などが未確認のため、`cleanInstallVerified` はfalseを維持する。自動チェックはストア審査合格、法令適合、秘密情報の完全な検出を保証するものではない。

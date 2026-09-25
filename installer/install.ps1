@@ -33,7 +33,9 @@ foreach ($sid in @($identity, (New-Object Security.Principal.SecurityIdentifier(
   $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
   $acl.AddAccessRule($rule)
 }
-Set-Acl -LiteralPath $dataPath -AclObject $acl
+# Persist only the access rules changed above. Set-Acl copies audit/owner
+# sections too and can demand SeSecurityPrivilege when updating this directory.
+[IO.Directory]::SetAccessControl($dataPath, $acl)
 Get-ChildItem -LiteralPath $payload -Force | Copy-Item -Destination $installPath -Recurse -Force
 $manifest = @{name='com.fastpagechat.bridge';description='Fast Page Chat local connection';path=(Join-Path $installPath 'FastPageChatHost.exe');type='stdio';allowed_origins=@("chrome-extension://$ExtensionId/")}
 $manifestFile = Join-Path $installPath 'native-host.json'

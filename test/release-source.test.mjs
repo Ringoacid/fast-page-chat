@@ -42,12 +42,17 @@ test('source export includes reviewed trees and excludes private data, profiles 
   await put('server/main.mjs', 'export const value = 1;');
   await put('installer/NativeHost.cs', '// source');
   await put('installer/licenses/CODEX-LICENSE.txt', 'license text');
+  await put('test/fixtures/DuplicateEnvironment.cs', '// Windows regression fixture');
+  await put('test/fixtures/InstallWithoutAuditPrivilege.ps1', '# Windows regression fixture');
+  await put('test/fixtures/DuplicateEnvironment.exe', 'not public');
   const files = await collectSourceFiles(root);
   const paths = files.map(file => file.path);
   assert.ok(paths.includes('.env.example'));
   assert.ok(paths.includes('server/main.mjs'));
   assert.ok(paths.includes('installer/NativeHost.cs'));
   assert.ok(paths.includes('installer/licenses/CODEX-LICENSE.txt'));
+  assert.ok(paths.includes('test/fixtures/DuplicateEnvironment.cs'));
+  assert.ok(paths.includes('test/fixtures/InstallWithoutAuditPrivilege.ps1'));
   assert.ok(!paths.some(path => /not-public|(?:^|\/)\.local|\.research|test-results|^dist\/|auth\.json|api-settings\.json|native-host\.json|\.key$|\.exe$/.test(path)));
   assert.ok(!paths.includes('.env'));
   assert.ok(files.every(file => /^[a-f0-9]{64}$/.test(file.sha256)));

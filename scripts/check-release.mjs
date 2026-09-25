@@ -12,7 +12,7 @@ const sourceTrees = new Map([
   ['server', new Set(['.mjs'])],
   ['scripts', new Set(['.mjs', '.ps1'])],
   ['installer', new Set(['.cs', '.ps1', '.json', '.md', '.txt', '.manifest'])],
-  ['test', new Set(['.mjs'])],
+  ['test', new Set(['.mjs', '.cs', '.ps1'])],
   ['assets', new Set(['.svg', '.png', '.ico'])],
   ['docs', new Set(['.md', '.html', '.css', '.json', '.svg', '.png', '.ico'])],
   ['.github', new Set(['.yml', '.yaml', '.md'])]

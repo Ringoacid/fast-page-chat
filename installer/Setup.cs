@@ -46,7 +46,9 @@ internal sealed class SetupForm : Form {
                 var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"));
                 start.Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + Path.Combine(temp, "install.ps1") + "\"";
                 start.UseShellExecute = false; start.CreateNoWindow = true;
-                start.EnvironmentVariables.Remove("PSModulePath");
+                // Avoid Framework's environment dictionary, which rejects inherited PATH/Path duplicates.
+                // This changes only this installer process and its children, not user/system settings.
+                Environment.SetEnvironmentVariable("PSModulePath", null);
                 start.RedirectStandardOutput = true; start.RedirectStandardError = true;
                 using (var child = Process.Start(start)) {
                     string error = child.StandardError.ReadToEnd(); child.StandardOutput.ReadToEnd(); child.WaitForExit();

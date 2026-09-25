@@ -56,9 +56,11 @@ internal static class NativeHost {
         start.WorkingDirectory = root;
         start.UseShellExecute = false; start.CreateNoWindow = true;
         start.RedirectStandardInput = true; start.RedirectStandardOutput = true; start.RedirectStandardError = true;
-        start.EnvironmentVariables["FPC_DATA_DIR"] = dataDirectory;
-        start.EnvironmentVariables["CODEX_BIN"] = Path.Combine(root, "runtime", "codex.exe");
         try {
+            // Avoid Framework's environment dictionary, which rejects inherited PATH/Path duplicates.
+            // These changes affect only this launcher and its children, not user/system settings.
+            Environment.SetEnvironmentVariable("FPC_DATA_DIR", dataDirectory);
+            Environment.SetEnvironmentVariable("CODEX_BIN", Path.Combine(root, "runtime", "codex.exe"));
             // Process.Start on .NET Framework can inherit unrelated standard
             // handles. Never let the detached bridge keep Chrome's pipe alive.
             foreach (int id in new int[] { -10, -11, -12 }) {
