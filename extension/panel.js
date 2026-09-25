@@ -19,7 +19,12 @@ const dataChanges = new BroadcastChannel('fast-page-chat-data');
 let draftImages = null, imageLoading = false, previewShown = 0;
 let db, chat = null, skills = [], chats = [], draftPage = null, identity = null, tabId = null;
 let generation = 0, busy = false, controller = null, windowId, editingSkill = null, menuChat = null, menuAnchor = null, editingChatId = null;
-let modelCatalog = [], modelRequest = null, saveQueue = Promise.resolve(), sessionTimer, toastTimer, undoAction;
+let modelCatalog = [], apiModelCatalog = [], modelRequest = null, saveQueue = Promise.resolve(), sessionTimer, toastTimer, undoAction;
+const starterApiModels = [
+  { model: 'gpt-6-luna', displayName: 'GPT-6 Luna' },
+  { model: 'gpt-6-sol', displayName: 'GPT-6 Sol' },
+  { model: 'gpt-6-astra', displayName: 'GPT-6 Astra' }
+];
 const titleJobs = new Map();
 const DATA_LOCK = 'fast-page-chat-data';
 const sessionKey = () => 'panel:' + windowId;
@@ -34,13 +39,6 @@ const selectedImages = () => imagesEnabled() ? (imageContext()?.images || []).sl
 const textNode = (tag, text, className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; return node; };
 const status = (text = '', error = false) => { $('status').textContent = text; $('status').hidden = !text; $('status').classList.toggle('error', error); };
 const on = (id, event, action) => $(id).addEventListener(event, e => { Promise.resolve().then(() => action(e)).catch(error => status(error.message, true)); });
-async function closePanel() {
-  if (chrome.sidePanel.close && Number.isInteger(windowId)) {
-    try { await chrome.sidePanel.close({ windowId }); return; }
-    catch (error) { console.error(error); }
-  }
-  window.close();
-}
 const openDialog = id => { for (const d of document.querySelectorAll('dialog[open]')) d.close(); $(id).showModal(); };
 const closeDialogs = () => document.querySelectorAll('dialog[open]').forEach(d => d.close());
 function notify(text, undo) {
@@ -540,8 +538,9 @@ async function deleteChat(record) {
 
 function renderModels() {
   const provider = $('provider').value, model = selectedProvider() === provider ? selectedModel() : settings[provider === 'api' ? 'apiModel' : 'codexModel'];
-  const options = new Map([['', { model: '', displayName: '既定のモデル' }]]);
+  const options = new Map(provider === 'codex' ? [['', { model: '', displayName: '既定のモデル' }]] : []);
   if (provider === 'codex') for (const m of modelCatalog) options.set(m.model, m);
+  else for (const m of [...starterApiModels, ...apiModelCatalog.map(model => ({ model, displayName: model }))]) options.set(m.model, m);
   for (const value of settings.customModels?.[provider] || []) options.set(value, { model: value, displayName: value });
   if (model && !options.has(model)) options.set(model, { model, displayName: model });
   $('model-list').replaceChildren();
@@ -553,14 +552,29 @@ function renderModels() {
     button.append(label); if (option.model === model) button.append(icon('check'));
     button.addEventListener('click', () => chooseModel(provider, option.model).catch(e => status(e.message, true))); $('model-list').append(button);
   }
-  $('load-models').hidden = provider !== 'codex';
+  $('load-models').hidden = false;
+  $('load-models').disabled = provider === 'api' && diagnostics?.api?.state !== 'configured';
   $('custom-model-form').hidden = provider !== 'api';
-  $('model-status').textContent = provider === 'api' ? '利用するモデルIDを追加できます。APIの利用料金がかかります。' : '';
+  $('model-status').textContent = provider === 'api' ? '候補は利用権限を保証しません。更新ボタンでAPIキーのモデル一覧を取得できます。' : '';
+}
+function renderSetupApiModels(preferred = settings.apiModel || 'gpt-6-luna') {
+  const choices = new Map();
+  for (const item of starterApiModels) choices.set(item.model, item.displayName);
+  for (const model of apiModelCatalog) choices.set(model, model);
+  for (const model of settings.customModels?.api || []) choices.set(model, model);
+  if (preferred && /^[\w.:-]{1,150}$/.test(preferred)) choices.set(preferred, preferred);
+  $('setup-api-model').replaceChildren(...[...choices].map(([model, label]) => {
+    const option = document.createElement('option'); option.value = model; option.textContent = label === model ? model : `${label} (${model})`; return option;
+  }));
+  const other = document.createElement('option'); other.value = '__custom__'; other.textContent = 'その他のモデルIDを入力'; $('setup-api-model').append(other);
+  $('setup-api-model').value = preferred && choices.has(preferred) ? preferred : 'gpt-6-luna';
+  $('setup-api-custom-row').hidden = $('setup-api-model').value !== '__custom__';
 }
 function updateTitleModelOptions(preserveSaved = true) {
   $('title-model-settings').hidden = settings.titleProvider === 'same';
   if (settings.titleProvider === 'same') return;
-  const options = titleModelOptions(settings.titleProvider, modelCatalog, settings.customModels, settings.apiModel, preserveSaved ? settings.titleModel : '');
+  const titleModels = { ...settings.customModels, api: [...(settings.customModels?.api || []), ...apiModelCatalog] };
+  const options = titleModelOptions(settings.titleProvider, modelCatalog, titleModels, settings.apiModel, preserveSaved ? settings.titleModel : '');
   if (!options.some(option => option.model === settings.titleModel)) settings.titleModel = 'gpt-6-luna';
   $('title-model').replaceChildren(...options.map(({ model, label }) => {
     const option = document.createElement('option'); option.value = model; option.textContent = label === model ? model : `${label} (${model})`;
@@ -577,15 +591,30 @@ async function chooseModel(provider, model) {
   if (chat) { chat.provider = provider; chat.model = model; chat.effort = ''; await persist(chat); }
   updateHeader(); $('model-dialog').close(); updateSend(); $('question').focus();
 }
-async function loadModels() {
+async function loadModels(provider = 'codex') {
   if (modelRequest || !settings.token || !hasDataConsent(settings)) return false;
-  $('load-models').disabled = true; $('model-status').textContent = 'モデルを読み込んでいます…';
-  modelRequest = fetch(endpoint + '/models', { headers: { Authorization: 'Bearer ' + settings.token }, signal: AbortSignal.timeout(35000) });
+  $('load-models').disabled = true;
+  if ($('model-dialog').open) $('model-status').textContent = 'モデルを読み込んでいます…';
+  if (provider === 'api') $('api-diagnostic').textContent = '利用可能なモデルを取得しています…';
+  modelRequest = fetch(endpoint + (provider === 'api' ? '/models/api' : '/models'), { headers: { Authorization: 'Bearer ' + settings.token }, signal: AbortSignal.timeout(35000) });
   try {
-    const response = await modelRequest; if (!response.ok) throw new Error('モデル一覧を取得できません。接続設定を確認してください。');
-    const data = await response.json(); modelCatalog = data.models || [];
-    await chrome.storage.local.set({ modelCatalog }); renderModels(); updateTitleModelOptions(); updateHeader(); return true;
-  } catch (error) { $('model-status').textContent = error.message; return false; }
+    const response = await modelRequest;
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'モデル一覧を取得できません。接続設定を確認してください。');
+    const data = await response.json();
+    if (provider === 'api') {
+      apiModelCatalog = Array.isArray(data.models) ? data.models : [];
+      renderSetupApiModels($('setup-api-model').value === '__custom__' ? settings.apiModel : $('setup-api-model').value);
+      $('api-diagnostic').textContent = apiModelCatalog.length ? `${apiModelCatalog.length}件の候補を取得しました。` : '回答用のモデルが一覧にありません。手入力も利用できます。';
+    } else {
+      modelCatalog = data.models || []; await chrome.storage.local.set({ modelCatalog });
+    }
+    if ($('model-dialog').open && $('provider').value === provider) renderModels();
+    updateTitleModelOptions(); updateHeader(); return true;
+  } catch (error) {
+    if ($('model-dialog').open) $('model-status').textContent = error.message;
+    if (provider === 'api') $('api-diagnostic').textContent = error.message;
+    return false;
+  }
   finally { modelRequest = null; $('load-models').disabled = false; }
 }
 
@@ -593,7 +622,7 @@ function showSetup() {
   $('setup-consent').hidden = hasDataConsent(settings);
   $('setup-connect-section').hidden = !hasDataConsent(settings);
   $('setup-provider').value = settings.provider;
-  $('setup-api-model').value = settings.apiModel || '';
+  renderSetupApiModels();
   $('extension-id').textContent = chrome.runtime.id;
   if (HELPER_DOWNLOAD_URL) { $('helper-download').href = HELPER_DOWNLOAD_URL; $('helper-download').hidden = false; }
   renderSetupState(); openDialog('setup-dialog');
@@ -612,6 +641,7 @@ function renderSetupState() {
   $('setup-finish').disabled = !bridgeReady || !ready || setupWorking;
   $('codex-login').hidden = diagnostics?.codex?.state === 'ready';
   for (const id of ['setup-connect', 'setup-diagnose', 'codex-login', 'api-save', 'login-check']) $(id).disabled = setupWorking;
+  $('setup-api-model-refresh').disabled = setupWorking || diagnostics?.api?.state !== 'configured';
 }
 async function setupRequest(path, body) {
   requireDataConsent(settings);
@@ -632,7 +662,7 @@ async function checkBridge() {
     const health = assertCompatibleBridge(await setupRequest('/health'));
     bridgeReady = true;
     $('setup-version').textContent = '拡張機能 ' + chrome.runtime.getManifest().version + ' · 補助アプリ ' + health.version;
-    if (!settings.apiModel && health.apiModel) { settings.apiModel = health.apiModel; $('setup-api-model').value = health.apiModel; await saveSettings(); }
+    if (!settings.apiModel && health.apiModel) { settings.apiModel = health.apiModel; renderSetupApiModels(); await saveSettings(); }
     $('connection-summary').textContent = '補助アプリ ' + health.version + ' に接続済み';
     return health;
   } catch (error) { bridgeReady = false; diagnostics = null; $('connection-summary').textContent = setupError(error); renderSetupState(); throw error; }
@@ -709,7 +739,8 @@ $('setup-dialog').addEventListener('close', () => { clearTimeout(loginPoll); $('
 $('setup-api').addEventListener('submit', event => {
   event.preventDefault();
   withSetupWork(async () => {
-    const apiKey = $('setup-api-key').value.trim(), model = $('setup-api-model').value.trim();
+    const apiKey = $('setup-api-key').value.trim();
+    const model = ($('setup-api-model').value === '__custom__' ? $('setup-api-custom').value : $('setup-api-model').value).trim();
     if (!/^[\w.:-]{1,150}$/.test(model)) throw new Error('利用するAPIモデルのIDを入力してください。');
     if (!apiKey && diagnostics?.api?.state !== 'configured') throw new Error('OpenAI APIキーを入力してください。');
     try {
@@ -717,7 +748,7 @@ $('setup-api').addEventListener('submit', event => {
       settings.apiModel = reply.apiModel || model;
       settings.customModels ||= { codex: [], api: [] };
       settings.customModels.api = [...new Set([...(settings.customModels.api || []), settings.apiModel])];
-      await saveSettings(); await diagnoseConnection();
+      await saveSettings(); await diagnoseConnection(); renderSetupApiModels(settings.apiModel);
       $('setup-status').textContent = 'API設定を保存しました。キーとモデルが利用可能かは最初の回答時に確認されます。';
     } finally { $('setup-api-key').value = ''; }
   });
@@ -765,7 +796,6 @@ $('chat-menu-dialog').addEventListener('close', () => {
 });
 window.addEventListener('resize', positionChatMenu);
 on('new-chat', 'click', newChat);
-on('panel-close', 'click', closePanel);
 on('images-toggle', 'click', toggleImages);
 on('images-open', 'click', () => { openDialog('images-dialog'); renderImages(); });
 on('images-more', 'click', appendImagePreview);
@@ -820,9 +850,11 @@ on('source-open', 'click', () => { updateHeader(); openDialog('source-dialog'); 
 on('refresh', 'click', () => capture());
 on('title-retry', 'click', () => { if (chat && !busy) return updateTitle(chat, { retry: true }); });
 on('scope', 'change', () => capture());
-on('model-open', 'click', () => { $('provider').value = selectedProvider(); renderModels(); openDialog('model-dialog'); if ($('provider').value === 'codex' && !modelCatalog.length) loadModels(); });
-on('provider', 'change', () => { renderModels(); if ($('provider').value === 'codex' && !modelCatalog.length) loadModels(); });
-on('load-models', 'click', loadModels);
+on('model-open', 'click', () => { $('provider').value = selectedProvider(); renderModels(); openDialog('model-dialog'); if ($('provider').value === 'codex' && !modelCatalog.length) loadModels(); else if ($('provider').value === 'api' && !apiModelCatalog.length && diagnostics?.api?.state === 'configured') loadModels('api'); });
+on('provider', 'change', () => { renderModels(); if ($('provider').value === 'codex' && !modelCatalog.length) loadModels(); else if ($('provider').value === 'api' && !apiModelCatalog.length && diagnostics?.api?.state === 'configured') loadModels('api'); });
+on('load-models', 'click', () => loadModels($('provider').value));
+on('setup-api-model', 'change', () => { $('setup-api-custom-row').hidden = $('setup-api-model').value !== '__custom__'; if (!$('setup-api-custom-row').hidden) $('setup-api-custom').focus(); });
+on('setup-api-model-refresh', 'click', () => loadModels('api'));
 $('custom-model-form').addEventListener('submit', async e => {
   e.preventDefault(); const model = $('custom-model').value.trim();
   if (!/^[\w.:-]{1,150}$/.test(model)) { $('model-status').textContent = '英数字・ハイフン・アンダースコア・ピリオド・コロンでモデルIDを入力してください。'; return; }

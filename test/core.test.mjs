@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { readSSE } from '../extension/stream.js';
 import { validateRequest, apiInput, codexInput, inputMessages } from '../server/prompt.mjs';
-import { apiAnswer } from '../server/api.mjs';
+import { apiAnswer, listApiModels } from '../server/api.mjs';
 import { createBridge } from '../server/http.mjs';
 
 const request = () => ({ provider: 'api', model: 'example-model', question: '日本語訳して', page: { title: 'Sample', url: 'https://example.com/article', text: 'A useful article.' }, history: [] });
@@ -39,6 +39,19 @@ test('Responses API receives context, no tools, no persistence, and streams text
     }
   });
   assert.deepEqual(events, [{ type: 'delta', text: '日本語の文章' }]);
+});
+
+test('API model choices use the saved key only at the helper and omit non-answer models', async () => {
+  const models = await listApiModels('test-secret', { fetchImpl: async (url, options) => {
+    assert.equal(url, 'https://api.openai.com/v1/models');
+    assert.equal(options.headers.Authorization, 'Bearer test-secret');
+    return Response.json({ data: [
+      { id: 'gpt-6-luna' }, { id: 'gpt-6-sol' }, { id: 'gpt-3.5-turbo' }, { id: 'gpt-image-2' },
+      { id: 'text-embedding-3-large' }, { id: 'gpt-6-luna' }, { id: 'invalid id' }
+    ] });
+  } });
+  assert.deepEqual(models, ['gpt-6-luna', 'gpt-6-sol']);
+  await assert.rejects(listApiModels('', { fetchImpl: () => { throw new Error('must not call'); } }), /APIキー/);
 });
 test('API truncated stream and incomplete response are errors', async () => {
   for (const type of ['response.output_text.delta', 'response.incomplete']) {

@@ -1,6 +1,6 @@
 import { createBridge } from './http.mjs';
 import { CodexClient } from './codex.mjs';
-import { apiAnswer } from './api.mjs';
+import { apiAnswer, listApiModels } from './api.mjs';
 import { runtimePaths, loadConnectionToken, loadApiSettings, BRIDGE_PORT } from './config.mjs';
 import { clearCodexDiagnostics } from './diagnostics.mjs';
 
@@ -11,6 +11,7 @@ const codex = new CodexClient({ paths });
 const server = createBridge({
   token, codex, apiSettings: settings,
   apiAnswer: (request, emit, signal) => { const { apiKey, model } = settings.get(); return apiAnswer(request, emit, signal, { apiKey, defaultModel: model }); },
+  apiModels: signal => listApiModels(settings.get().apiKey, { signal }),
   clearLogs: () => clearCodexDiagnostics(paths),
   shutdown: () => { server.close(); server.closeAllConnections(); }
 });

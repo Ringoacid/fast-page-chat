@@ -110,12 +110,21 @@ test('diagnostic cleanup rejects a junction or symlink in an ancestor of the ded
 test('all setup and cleanup routes authenticate before reading or changing data', async t => {
   let writes = 0;
   const { base } = await bridge(t, { clearLogs: async () => { writes++; return 0; } });
-  for (const [method, path] of [['GET', '/health'], ['GET', '/diagnostics'], ['GET', '/login/status'], ['POST', '/login/start'], ['POST', '/settings/api'], ['POST', '/logs/clear'], ['POST', '/shutdown']]) {
+  for (const [method, path] of [['GET', '/health'], ['GET', '/diagnostics'], ['GET', '/login/status'], ['GET', '/models/api'], ['POST', '/login/start'], ['POST', '/settings/api'], ['POST', '/logs/clear'], ['POST', '/shutdown']]) {
     const response = await fetch(base + path, { method, ...(method === 'POST' ? { body: '{}' } : {}) });
     assert.equal(response.status, 401, path);
     assert.equal((await fetch(base + path, { method, headers: { ...headers, Origin: 'https://example.com' }, ...(method === 'POST' ? { body: '{}' } : {}) })).status, 403, path);
   }
   assert.equal(writes, 0);
+});
+
+test('authenticated API model list returns model IDs without credentials', async t => {
+  const { base } = await bridge(t, { apiModels: async () => ['gpt-6-luna', 'gpt-6-sol'] });
+  const response = await fetch(base + '/models/api', { headers });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.deepEqual(result, { models: ['gpt-6-luna', 'gpt-6-sol'] });
+  assert.ok(!JSON.stringify(result).includes('test-token'));
 });
 test('health and diagnostics expose protocol and configuration without API credentials', async t => {
   const paths = await isolatedPaths(t);

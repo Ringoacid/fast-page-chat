@@ -26,6 +26,7 @@ const server = createServer(async (req, res) => {
   if (req.url === '/login/start') return json({ authUrl: 'https://auth.openai.com/oauth/authorize?state=local-test-only', loginId: 'local-test-only' });
   if (req.url === '/login/status') { codexSignedIn = true; return json({ state: 'ready', message: 'ログイン完了' }); }
   if (req.url === '/settings/api') { configured = true; apiModel = body.model; return json({ ok: true, apiConfigured: true, apiModel }); }
+  if (req.url === '/models/api') return json({ models: ['gpt-6-luna', 'test-model'] });
   if (req.url === '/title') return json({ title: '初回設定を確認する' });
   if (req.url === '/chat') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
@@ -108,9 +109,13 @@ try {
   assert.equal(await panel.evaluate(() => window.captureCount), 0, 'Completing login must not start reading the authentication tab.');
   await panel.locator('#setup-provider').selectOption('api');
   await panel.locator('#setup-api-key').fill('sk-test-only-never-real');
-  await panel.locator('#setup-api-model').fill('test-model');
+  await panel.locator('#setup-api-model').selectOption('__custom__');
+  await panel.locator('#setup-api-custom').fill('test-model');
   await panel.locator('#api-save').click();
   await panel.waitForFunction(() => !document.querySelector('#setup-finish').disabled);
+  await panel.locator('#setup-api-model-refresh').click();
+  await panel.locator('#api-diagnostic').filter({ hasText: '2件の候補' }).waitFor();
+  assert.deepEqual(await panel.locator('#setup-api-model option').evaluateAll(options => options.map(option => option.value).filter(value => value === 'gpt-6-luna' || value === 'test-model')), ['gpt-6-luna', 'test-model']);
   assert.equal(await panel.locator('#setup-api-key').inputValue(), '');
   assert.ok(!JSON.stringify(await worker.evaluate(() => chrome.storage.local.get(null))).includes('sk-test-only-never-real'));
   await panel.screenshot({ path: 'test-results/setup-api-320.png', animations: 'disabled' });

@@ -6,7 +6,7 @@ import { VERSION, PROTOCOL_VERSION } from './config.mjs';
 
 const MAX_REQUEST_BYTES = 70_000_000;
 
-export function createBridge({ token, codex, apiAnswer, apiConfigured = false, apiModel = '', apiSettings, clearLogs, shutdown }) {
+export function createBridge({ token, codex, apiAnswer, apiModels, apiConfigured = false, apiModel = '', apiSettings, clearLogs, shutdown }) {
   let active = 0;
   let receiving = 0;
   let controls = 0;
@@ -86,6 +86,15 @@ export function createBridge({ token, codex, apiAnswer, apiConfigured = false, a
       if (controls >= 4) { json(429, { error: 'モデル一覧を取得中です。' }); return; }
       controls++;
       try { json(200, { models: await codex.models() }); } catch (error) { json(503, { error: error.message }); }
+      finally { controls--; }
+      return;
+    }
+    if (req.method === 'GET' && req.url === '/models/api') {
+      if (!apiModels) { json(503, { error: 'APIモデル一覧に対応していません。' }); return; }
+      if (controls >= 4) { json(429, { error: 'モデル一覧を取得中です。' }); return; }
+      controls++;
+      try { json(200, { models: await apiModels(AbortSignal.timeout(25000)) }); }
+      catch (error) { json(503, { error: error.message || 'モデル一覧を取得できませんでした。' }); }
       finally { controls--; }
       return;
     }

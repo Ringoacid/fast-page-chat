@@ -41,14 +41,19 @@ test('toolbar uses the normal action path and refreshes only its clicked window 
   const { readFile } = await import('node:fs/promises');
   const { runInNewContext } = await import('node:vm');
   const events = [];
-  let action;
+  let action, opened, closed;
   const chrome = {
     sidePanel: {
       setPanelBehavior: async value => { events.push(['behavior', value.openPanelOnActionClick]); },
-      open: async value => { events.push(['open', value.windowId]); }
+      open: async value => { events.push(['open', value.windowId]); },
+      close: async value => { events.push(['close', value.windowId]); },
+      onOpened: { addListener(listener) { opened = listener; } },
+      onClosed: { addListener(listener) { closed = listener; } }
     },
     action: { onClicked: { addListener(listener) { action = listener; } } },
     runtime: {
+      getURL: path => 'chrome-extension://' + 'a'.repeat(32) + '/' + path,
+      getContexts: async () => [],
       onInstalled: { addListener() {} },
       sendMessage: async value => { events.push(['capture', value.type, value.tabId, value.windowId]); }
     }
@@ -59,7 +64,22 @@ test('toolbar uses the normal action path and refreshes only its clicked window 
   action({ id: 42, windowId: 7 });
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(events, [['behavior', false], ['open', 7], ['capture', 'toolbar-capture', 42, 7]]);
+  action({ id: 42, windowId: 7 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events.at(-1), ['close', 7]);
+  action({ id: 42, windowId: 7 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events.slice(-2), [['open', 7], ['capture', 'toolbar-capture', 42, 7]]);
+  opened({ path: 'panel.html', windowId: 8 });
+  action({ id: 50, windowId: 8 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events.at(-1), ['close', 8]);
+  closed({ path: 'panel.html', windowId: 7 });
+  action({ id: 42, windowId: 7 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events.slice(-2), [['open', 7], ['capture', 'toolbar-capture', 42, 7]]);
+  const count = events.length;
   action({ id: -1, windowId: 7 }); action({ id: 42 }); action();
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(events.length, 3, 'Missing or invalid clicked tabs must not open or capture another tab.');
+  assert.equal(events.length, count, 'Missing or invalid clicked tabs must not open or capture another tab.');
 });
