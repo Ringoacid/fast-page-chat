@@ -1,0 +1,19 @@
+{
+  "name": "fast-page-chat",
+  "version": "0.10.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.9" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/main.mjs",
+    "test": "node --test test/*.test.mjs",
+    "codex:login": "node --env-file-if-exists=.env scripts/codex-login.mjs",
+    "check:codex": "node --env-file-if-exists=.env scripts/check-codex.mjs",
+    "test:browser": "node scripts/browser-check.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "prepare:source": "node scripts/prepare-source.mjs",
+    "build:assets": "node scripts/build-assets.mjs"
+  },
+  "devDependencies": { "playwright": "1.62.1", "sharp": "0.35.4" }
+}

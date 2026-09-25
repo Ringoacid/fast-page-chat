@@ -1,0 +1,32 @@
+name: 不具合の報告
+description: 動作しなかった操作と環境を知らせる
+body:
+  - type: markdown
+    attributes:
+      value: 接続キー・APIキー・Codex認証情報・実際の非公開ページや会話は添付しないでください。セキュリティの問題はSECURITY.mdを参照してください。
+  - type: input
+    id: version
+    attributes:
+      label: 拡張機能とヘルパーのバージョン
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Windowsとブラウザのバージョン
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: 接続先
+      options: [Codex, OpenAI API, 接続前・不明]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 再現手順と実際の結果
+      description: 期待した動作、実際の動作、秘密情報を除いたエラーメッセージを記入してください。
+    validations:
+      required: true

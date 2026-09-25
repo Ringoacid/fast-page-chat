@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Fast Page Chatが扱うページ本文、画像、会話、保存先と送信先について。">
+  <title>プライバシーポリシー | Fast Page Chat</title>
+  <link rel="stylesheet" href="privacy.css">
+</head>
+<body><main>
+  <p class="eyebrow">Fast Page Chat</p>
+  <h1>プライバシーポリシー</h1>
+  <p class="meta">対象: 0.10.0 / 更新日: 2026年9月25日</p>
+  <aside class="notice" aria-label="配布状況"><strong>GitHubで配布するベータ版についての説明です。</strong>Chrome Web Storeでの公開や審査完了を示すものではありません。</aside>
+  <div class="summary"><p>ページの抽出はPC内で行います。質問を送ると、本文・質問・会話の一部と、画像ON時の画像を、PC内の接続サーバーを経由してOpenAIへ送ります。履歴はブラウザ内に保存します。外部画像の取得時には画像の配信元にも通信します。</p></div>
+
+  <h2>1. 公開者と目的</h2>
+  <p>公開者: <strong>Ringoacid</strong><br>問い合わせ先: <a href="https://github.com/Ringoacid/fast-page-chat/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a><br>公開リポジトリ: <a href="https://github.com/Ringoacid/fast-page-chat" target="_blank" rel="noopener noreferrer">Ringoacid/fast-page-chat</a></p>
+  <p>Fast Page Chatは、利用者が開いているWebページを翻訳・要約し、内容について質問するための非公式のブラウザ拡張機能です。OpenAI、Googleの公式製品ではありません。</p>
+
+  <h2>2. 取得する情報と取得のタイミング</h2>
+  <p>初回に拡張機能内のデータ取り扱い説明を表示します。その説明に同意した後、以下の取得処理を利用できます。</p>
+  <ul>
+    <li><strong>ページ名、URL、本文、選択した文章:</strong> サイドパネルを開く、再取得する、または許可済みページへ切り替える際に、アクセスが許可されたページから取得します。全サイトへのアクセスは任意です。通常の本文モードではフォームや編集領域などを除外しますが、選択モードで明示的に選んだ文章は取得対象です。</li>
+    <li><strong>画像:</strong> 画像ON時に、本文内の画像を取得します。必要に応じて外部の画像URLへアクセスします。元画像を取得できない場合は、表示中のページをPC内で一時的に撮影し、対象画像の領域だけを切り出すことがあります。画面全体の撮影データは履歴へ保存せず、モデルへ送りません。</li>
+    <li><strong>会話:</strong> 入力した質問、定型文を使って送信した質問、モデルの回答、生成したチャット名を扱います。未送信の質問の下書きはブラウザのセッション内に保存します。</li>
+    <li><strong>設定・認証:</strong> 接続キー、接続先、モデル、表示・画像・タイトル生成の設定を保存します。OpenAI APIキーやCodexの認証情報は接続ヘルパー側で扱い、Webページへ渡しません。</li>
+  </ul>
+  <p>ページ全体を巡回して収集する機能や閲覧履歴APIの利用はありません。ページ内に個人情報や非公開の情報が含まれていると、抽出・送信する本文や画像にも含まれ得ます。自動的に匿名化する機能はありません。送信前に「参照する本文」と画像プレビューを確認できます。</p>
+
+  <h2>3. 送信先と利用目的</h2>
+  <ul>
+    <li><strong>このPCの接続サーバー:</strong> 拡張機能は <code>127.0.0.1:4318</code> へ接続します。接続キーで認証し、利用者が選んだ接続先へ要求を渡します。Native Messagingを使用する場合も、ブラウザと同じPCのヘルパーとの接続です。</li>
+    <li><strong>OpenAI:</strong> 質問を送信すると、ページ名、クエリー・フラグメントを除いたURL、本文、質問、直近6往復までの完了した会話を、Codex App ServerまたはOpenAI Responses APIを通して送信します。画像ON時には選択枚数分の画像も送ります。応答の生成に使います。</li>
+    <li><strong>タイトル生成:</strong> 最初の回答後の名前付け、後続回答後の名前更新、利用者による再生成では、ページ名と会話の一部を追加送信します。初期設定は回答と同じ接続先・モデルを使用します。設定で別の接続先・モデルを選ぶことも、自動生成を無効にすることもできます。</li>
+    <li><strong>画像の配信元:</strong> 外部画像の取得時に、画像URLへ通信します。配信元にはIPアドレスや要求した画像URLなど通常の通信情報が伝わります。画像URLにはクエリーが含まれる場合があります。拡張機能の画像取得はCookie、HTTP認証情報、ローカル接続キーを添付しません。</li>
+    <li><strong>配布サービス:</strong> ソースやヘルパーをダウンロードする場合は、GitHubなど利用した配布サービスの規約とプライバシーポリシーが適用されます。これはモデルへの本文送信とは別の通信です。</li>
+  </ul>
+  <p>公開者が運営する中継サーバーへ会話を送る仕組みはありません。本拡張機能には広告、アクセス解析、利用状況の自動送信のためのコードを設けていません。ページの内容を広告、販売、与信の目的に利用しません。</p>
+
+  <h2>4. OpenAIでの取り扱い</h2>
+  <p>OpenAI APIと、ChatGPTのアカウントで利用するCodexでは、適用される規約・データ設定が異なる場合があります。利用するアカウント、プラン、組織の設定に応じて、保持や学習利用などの取り扱いを確認してください。本拡張機能がOpenAI側の保持・学習設定を一律に無効にすることはありません。</p>
+  <p>Responses APIには <code>store: false</code> を指定しますが、これはすべてのログや不正利用監視用データの保持がなくなる保証ではありません。Codexでは一時セッションを使用しますが、プロバイダー側の保持がなくなる保証ではありません。</p>
+  <p><a href="https://openai.com/policies/privacy-policy/" target="_blank" rel="noopener noreferrer">OpenAIのプライバシーポリシー</a> / <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">OpenAI APIのデータ管理</a> / <a href="https://help.openai.com/en/articles/7730893-data-controls-faq" target="_blank" rel="noopener noreferrer">ChatGPTのデータ管理</a></p>
+
+  <h2>5. 保存先と保存期間</h2>
+  <ul>
+    <li><strong>ブラウザ:</strong> 会話、チャット開始時の参照本文、取得済み画像、スキルを拡張機能のIndexedDBへ保存します。設定と接続キーは <code>chrome.storage.local</code>、未送信の下書きなどは <code>chrome.storage.session</code> に保存します。拡張機能によるクラウド同期は行いません。履歴に自動削除期限はなく、利用者が削除するまで保持します。ブラウザの削除・消去処理などで失われることもあります。</li>
+    <li><strong>PC内の接続ヘルパー:</strong> Windowsヘルパーの実行ファイルは <code>%LOCALAPPDATA%\FastPageChat\app</code>、接続キー、API設定、専用のCodexホーム・認証情報、診断記録などは <code>%LOCALAPPDATA%\FastPageChat\data</code> に保存します。開発用の構成では <code>.env</code> と <code>.local</code> を使います。Codex自身が診断ログや内部データを保存する可能性があります。一時セッションや標準エラー出力の抑止は、PC上に一切記録されないことを意味しません。</li>
+    <li><strong>書き出し:</strong> 利用者が会話を書き出したMarkdownファイルは、利用者が選んだ場所に残ります。拡張機能からチャットを削除しても、書き出したファイルは削除されません。</li>
+  </ul>
+  <p>Windowsヘルパーの設定画面から保存したAPIキーは、WindowsのDPAPIを使用して、そのWindowsユーザーに紐付けて保護します。ブラウザ内の会話、接続キー、Codex自身が保存する情報を含め、すべての保存データを一括して暗号化する機能ではありません。開発用の <code>.env</code> やWindows以外の手動サーバーではAPIキーを平文で保持する構成があります。Windowsインストーラーはヘルパーのデータフォルダーのアクセス権を、そのWindowsユーザーとSYSTEMに制限します。PCのアカウント、ディスク暗号化などの保護にも依存します。接続サーバーは本文や回答を独自のログへ出力しませんが、エラー情報やCodex自身の診断記録は別途残る可能性があります。</p>
+
+  <h2>6. 利用者による管理と削除</h2>
+  <ul>
+    <li>チャット履歴から会話を削除すると、そのチャットに保存された本文・画像も削除されます。削除の取り消しが表示されている短い間は、復元用データがメモリに残ります。</li>
+    <li>設定の「すべてのチャットを削除」では、会話とその参照本文・画像を一括削除できます。「Codexの診断データを削除」はPC内の対象の診断記録を削除し、Codexの認証情報とは区別して扱います。外部サービスの記録を削除する機能ではありません。</li>
+    <li>画像をOFFにすると次の要求に画像データを含めません。すでに保存した画像や過去に送った画像は削除されません。</li>
+    <li>設定から自動タイトル生成を停止し、全サイトへのアクセス許可を解除できます。画像配信元ごとの許可もブラウザの拡張機能設定から管理できます。</li>
+    <li>拡張機能の削除またはブラウザの拡張機能データの消去でブラウザ内の保存データを削除できます。PC内のヘルパー設定・APIキー・Codex認証情報や診断記録は別管理です。Windowsヘルパーのアンインストールは初期状態ではデータを残します。データも削除する場合は、同梱の <code>uninstall.ps1</code> に <code>-DeleteData</code> を指定します。この操作でブラウザ内の履歴は削除されません。</li>
+    <li>ローカルの削除は、OpenAIへ送信済みのデータや画像配信元の通信記録の削除要求にはなりません。外部サービス側の削除やデータ設定は、それぞれのサービスで行ってください。</li>
+  </ul>
+
+  <h2>7. データ利用の制限</h2>
+  <p>ページへのアクセスは、利用者に見える翻訳・要約・質問・履歴機能のために使用します。Chrome Web Store User Data PolicyのLimited Use要件に沿って、これらの情報を広告・追跡目的へ転用しません。公開者が利用者の会話を自動収集して閲覧する機能はありません。サポートのために利用者自身が資料を送る場合は、必要な範囲だけ共有し、接続キーや認証情報は含めないでください。</p>
+
+  <h2>8. 変更と問い合わせ</h2>
+  <p>取り扱う情報、送信先、保存方法に変更がある場合は、このページと拡張機能内の説明を更新します。通常の問い合わせは <a href="https://github.com/Ringoacid/fast-page-chat/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> へお寄せください。投稿は公開されるため、認証情報や非公開のページ・会話を含めないでください。セキュリティ上の問題はリポジトリの <a href="https://github.com/Ringoacid/fast-page-chat/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">SECURITY.md</a> の案内に従ってください。</p>
+  <footer>このページは拡張機能に同梱され、同じ内容を公開サイトにも掲載します。</footer>
+</main></body>
+</html>

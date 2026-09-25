@@ -1,0 +1,24 @@
+name: Source checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Unit tests (mocked models)
+        run: node --test test/*.test.mjs
+      - name: Audit public source and documentation
+        run: node scripts/check-release.mjs
+      - name: Verify allowlisted source export
+        run: node scripts/prepare-source.mjs --dry-run
