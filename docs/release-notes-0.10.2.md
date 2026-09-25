@@ -4,7 +4,7 @@ Chrome 154で、ツールバーの拡張機能ボタンからパネルを開い�
 
 Codexの既定モデルでは回答が成功しても、自動タイトルだけ「モデルIDが不正です」と失敗する問題も修正しました。会話と同じ既定モデルをタイトルにも使用します。
 
-単体テスト86件とWindows補助アプリの回帰14項目が成功しました。Windows 11 HomeのVMで本文取得、Codexの実回答、タイトルの再生成、履歴を保った更新とChrome再起動後の再接続を確認しています。API・画像の実送信などは未確認です。確認範囲と残る項目は[0.10.2の検証記録](https://github.com/Ringoacid/fast-page-chat/blob/main/docs/validation-0.10.2.md)を参照してください。
+単体テスト86件とWindows補助アプリの回帰14項目が成功しました。Windows 11 HomeのVMで本文取得、Codexの実回答、自動タイトル、履歴を保った更新、Chrome再起動とWindows起動後の再接続を確認しています。Windowsの通常再起動はVMの応答停止を挟んでおり、API・画像の実送信なども未確認です。確認範囲と残る項目は[0.10.2の検証記録](https://github.com/Ringoacid/fast-page-chat/blob/main/docs/validation-0.10.2.md)を参照してください。
 
 ## 操作の変更
 

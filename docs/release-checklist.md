@@ -17,7 +17,7 @@
 ## 公開URL
 
 - [x] 0.10.1までのプライバシーポリシーをHTTPS URLで公開し、同梱版との内容一致を確認する。
-- [ ] 0.10.2も対象に含めたプライバシーポリシーをログイン不要のHTTPS URLへ反映し、拡張機能同梱版と同じ内容であることを確認する。
+- [x] 0.10.2も対象に含めたプライバシーポリシーをログイン不要のHTTPS URLへ反映し、拡張機能同梱版と同じ内容であることを確認する。
 - [x] GitHub Pagesを使う場合は、リポジトリのPages設定でGitHub Actionsを選び、ポリシーの確認後に手動のPublish Pagesワークフローを実行する。ソースのpushでは自動公開しない。ワークフローの `--policy` チェックはポリシー公開の準備を確認し、Web Store用の `--public` ゲートとは区別する。
 - [ ] サポートURL・ポリシーURLをChrome Web Storeの掲載情報にも設定する。
 
@@ -27,6 +27,7 @@
 - [x] 0.10.1のVMで補助アプリへ接続し、利用者自身のCodexログインとモデル一覧を確認する。本文取得とCodexの実回答は0.10.2で確認済み。
 - [x] 0.10.1から0.10.2へ更新し、認証設定と拡張機能登録が保たれる。
 - [ ] Windows再起動・ブラウザ再起動後に、ターミナル操作やキーの貼り付けなしで再接続できる。
+- [x] Chrome再起動と、VMの起動し直し後のWindowsで、キー入力なしの再接続・Codex回答・自動タイトル・履歴保持を確認する。通常のWindows再起動は途中でVMが応答停止したため、上の項目は未完了とする。
 - [ ] Codexのみ、APIのみの環境を別々に試す。回答と自動タイトルの両方が動く。
 - [ ] 未ログイン・ログイン期限切れ・APIキー未設定・モデル利用不可の原因が設定画面で区別できる。
 - [ ] 既存サーバーの停止、接続失敗、ポート競合、ヘルパー再起動から復旧できる。
@@ -49,11 +50,11 @@
 - [x] 重複する環境変数を実際のWin32環境ブロックで再現し、0.10.2のコンパイル済みランチャーと隔離ChromiumによるNative Messagingを確認する。最終ビルドで14項目成功済み。[検証記録](validation-0.10.2.md)
 - [x] 0.10.2の最終ソースで `node scripts/check-release.mjs` が成功する。
 - [x] 0.10.2の最終ソースで `node scripts/prepare-source.mjs --dry-run` が成功する。
-- [ ] 0.10.2の最終ソースについて、`node scripts/prepare-source.mjs` が生成したallowlist方式の出力とGit登録内容のSHA-256一致を確認して公開する。作業フォルダー全体を公開しない。
-- [ ] 0.10.2の公開アセットとビルドのSHA-256一致、GitHub Actionsの成功を確認する。0.10.1は[公開後の確認](validation-0.10.1.md)を参照する。
-- [ ] `.env`、`.local`、`.research`、`test-results`、ブラウザプロファイル、認証情報が0.10.2の配布物にないことを確認する。
+- [x] 0.10.2の最終ソースについて、`node scripts/prepare-source.mjs` が生成したallowlist方式の出力とGit登録内容のSHA-256一致を確認して公開する。102ファイルを照合し、作業フォルダー全体を公開しない。
+- [x] 0.10.2の公開アセットとビルドのSHA-256一致、GitHub Actionsの成功を確認する。[公開後の確認](validation-0.10.2.md)を参照する。
+- [x] `.env`、`.local`、`.research`、`test-results`、ブラウザプロファイル、認証情報が0.10.2の配布物にないことを確認する。
 - [x] 専用アイコン、440×280のプロモーション画像、1280×800の実UIスクリーンショット、説明文、権限説明を確認する。
 - [ ] Chrome Web Storeのデータ申告を実装・画面説明・ポリシーと照合する。「外部送信なし」「完全ローカル」と記載しない。
 - [ ] すべての公開ゲートを満たしてから `node scripts/check-release.mjs --public` を実行する。
 
-`policyFinalized`、`cleanInstallVerified`、`storeAssetsVerified` は証拠を確認してからtrueにする。Codexの本文回答とChrome再起動は確認済みだが、API・画像の実送信、Windows再起動、最終版の完全新規導入などが未確認のため、`cleanInstallVerified` はfalseを維持する。自動チェックはストア審査合格、法令適合、秘密情報の完全な検出を保証するものではない。
+`policyFinalized`、`cleanInstallVerified`、`storeAssetsVerified` は証拠を確認してからtrueにする。Codexの本文回答、Chrome再起動、Windows起動後の再接続は確認済みだが、API・画像の実送信、中断のないWindows再起動、最終版の完全新規導入などが未確認のため、`cleanInstallVerified` はfalseを維持する。自動チェックはストア審査合格、法令適合、秘密情報の完全な検出を保証するものではない。
